@@ -1,0 +1,3 @@
+CREATE TABLE jobs (
+    id UUID PRIMARY KEY
+);
