@@ -1,6 +1,7 @@
 import { createJob } from "../jobs/create-job";
 import { claimJob } from "../jobs/claim-job";
 import { completeJob } from "../jobs/complete-job";
+import { failJob } from "../jobs/fail-job";
 
 const main = async (): Promise<void> => {
   const createdJob = await createJob({
@@ -32,21 +33,44 @@ const main = async (): Promise<void> => {
     attemptNumber: claimedJob.attempt_number,
   });
 
-  const completedJob = await completeJob(
+  // const completedJob = await completeJob(
+  //   claimedJob.id,
+  //   claimedJob.lease_id as string
+  // );
+
+  // if (!completedJob) {
+  //   throw new Error("Failed to complete job");
+  // }
+
+  // console.log("Completed Job");
+  // console.table({
+  //   id: completedJob.id,
+  //   status: completedJob.status,
+  //   completedAt: completedJob.completed_at?.toISOString(),
+  // });
+
+  const failedJob = await failJob(
     claimedJob.id,
-    claimedJob.lease_id as string
+    claimedJob.lease_id as string,
+    "SMTP server unavailable"
   );
 
-  if (!completedJob) {
-    throw new Error("Failed to complete job");
+  if (!failedJob) {
+    throw new Error("Failed to fail job");
   }
 
-  console.log("Completed Job");
+  console.log("Failed Job");
   console.table({
-    id: completedJob.id,
-    status: completedJob.status,
-    completedAt: completedJob.completed_at?.toISOString(),
+    id: failedJob.id,
+    status: failedJob.status,
+    attemptNumber: failedJob.attempt_number,
+    runAt: failedJob.run_at?.toISOString(),
+    workerId: failedJob.worker_id,
+    leaseId: failedJob.lease_id,
+    lastError: failedJob.last_error,
+    failedAt: failedJob.failed_at?.toISOString(),
   });
+  
 };
 
 void main();
