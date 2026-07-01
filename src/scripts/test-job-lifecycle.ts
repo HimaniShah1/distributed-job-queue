@@ -1,30 +1,25 @@
-import { createJob } from "../jobs/create-job";
-import { claimJob } from "../jobs/claim-job";
-import { completeJob } from "../jobs/complete-job";
-import { failJob } from "../jobs/fail-job";
+import { claimJob } from "../jobs/claim-job.js";
+import { completeJob } from "../jobs/complete-job.js";
+import { failJob } from "../jobs/fail-job.js";
+
+import { seedJobs } from "./helpers/seed-jobs.js";
 
 const main = async (): Promise<void> => {
-  const createdJob = await createJob({
-    queueName: "emails",
-    payload: {
-      to: "test@example.com",
-      subject: "Hello",
+  await seedJobs([
+    {
+      processingTimeMs: 100,
+      shouldFail: false,
     },
-  });
-
-  console.log("Created Job");
-  console.table({
-    id: createdJob.id,
-    status: createdJob.status,
-  });
+  ]);
 
   const claimedJob = await claimJob("worker-1");
 
   if (!claimedJob) {
-    throw new Error("Failed to claim job");
+    throw new Error("Failed to claim job.");
   }
 
   console.log("Claimed Job");
+
   console.table({
     id: claimedJob.id,
     status: claimedJob.status,
@@ -33,44 +28,39 @@ const main = async (): Promise<void> => {
     attemptNumber: claimedJob.attempt_number,
   });
 
-  // const completedJob = await completeJob(
-  //   claimedJob.id,
-  //   claimedJob.lease_id as string
-  // );
+  const shouldFail = true;
 
-  // if (!completedJob) {
-  //   throw new Error("Failed to complete job");
-  // }
+  if (shouldFail) {
+    const failedJob = await failJob(
+      claimedJob.id,
+      claimedJob.lease_id!,
+      "SMTP server unavailable"
+    );
 
-  // console.log("Completed Job");
-  // console.table({
-  //   id: completedJob.id,
-  //   status: completedJob.status,
-  //   completedAt: completedJob.completed_at?.toISOString(),
-  // });
+    console.log("Failed Job");
 
-  const failedJob = await failJob(
-    claimedJob.id,
-    claimedJob.lease_id as string,
-    "SMTP server unavailable"
-  );
+    console.table({
+      id: failedJob?.id,
+      status: failedJob?.status,
+      attemptNumber: failedJob?.attempt_number,
+      runAt: failedJob?.run_at?.toISOString(),
+    });
 
-  if (!failedJob) {
-    throw new Error("Failed to fail job");
+    return;
   }
 
-  console.log("Failed Job");
+  const completedJob = await completeJob(
+    claimedJob.id,
+    claimedJob.lease_id!
+  );
+
+  console.log("Completed Job");
+
   console.table({
-    id: failedJob.id,
-    status: failedJob.status,
-    attemptNumber: failedJob.attempt_number,
-    runAt: failedJob.run_at?.toISOString(),
-    workerId: failedJob.worker_id,
-    leaseId: failedJob.lease_id,
-    lastError: failedJob.last_error,
-    failedAt: failedJob.failed_at?.toISOString(),
+    id: completedJob?.id,
+    status: completedJob?.status,
+    completedAt: completedJob?.completed_at?.toISOString(),
   });
-  
 };
 
 void main();
