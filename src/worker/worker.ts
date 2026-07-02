@@ -1,6 +1,7 @@
 import { claimJob } from "../jobs/claim-job.js";
 import { completeJob } from "../jobs/complete-job.js";
 import { failJob } from "../jobs/fail-job.js";
+import { heartbeatJob } from "../jobs/heartbeat-job.js";
 
 import type { Job } from "../types/jobs.js";
 
@@ -19,6 +20,18 @@ export const processNextJob = async (
     return false;
   }
 
+  const heartbeat = setInterval(async () => {
+  const alive = await heartbeatJob(
+    job.id,
+    job.lease_id!
+  );
+
+  if (!alive) {
+    clearInterval(heartbeat);
+    return;
+  }
+}, 2000);
+
   try {
     await processor(job);
 
@@ -27,14 +40,18 @@ export const processNextJob = async (
     const errorMessage =
       error instanceof Error ? error.message : String(error);
 
-    await failJob(
+   const failedJob = await failJob(
       job.id,
       job.lease_id!,
       errorMessage
     );
+
     console.log(
-    `[FAILED] ${job?.id} -> ${job?.status} (attempt ${job?.attempt_number})`
-  );
+      `[FAILED] ${failedJob?.id} -> ${failedJob?.status} (attempt ${failedJob?.attempt_number})`
+    );
+
+  } finally {
+    clearInterval(heartbeat);
   }
 
   return true;
@@ -55,3 +72,4 @@ export const startWorker = async (
     }
   }
 };
+

@@ -8,17 +8,9 @@ const sleep = (ms: number): Promise<void> =>
 const main = async (): Promise<void> => {
   await seedJobs([
     {
-      processingTimeMs: 1000,
-      shouldFail: false,
-    },
-    {
-      processingTimeMs: 500,
-      shouldFail: false,
-    },
-    {
-      processingTimeMs: 1000,
-      shouldFail: true,
-    },
+  processingTimeMs: 30000,
+  shouldFail: false,
+}
   ]);
 
   console.log("Starting worker...");
