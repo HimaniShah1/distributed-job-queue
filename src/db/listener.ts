@@ -21,7 +21,9 @@ export const initializeListener = async (): Promise<void> => {
 };
 
 /** Worker sleeps here until Postgres wakes it up */
-export const waitForNotification = async (): Promise<void> => {
+export const waitForNotification = async (
+  signal: AbortSignal
+): Promise<void> => {
   if (!listener) {
     throw new Error("Listener has not been initialized.");
   }
@@ -29,12 +31,22 @@ export const waitForNotification = async (): Promise<void> => {
   const client = listener;
 
   await new Promise<void>((resolve) => {
-    const onNotification = (): void => {
+    const cleanup = (): void => {
       client.off("notification", onNotification);
+      signal.removeEventListener("abort", onAbort);
+    };
 
+    const onNotification = (): void => {
+      cleanup();
+      resolve();
+    };
+
+    const onAbort = (): void => {
+      cleanup();
       resolve();
     };
 
     client.on("notification", onNotification);
+    signal.addEventListener("abort", onAbort);
   });
 };

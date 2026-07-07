@@ -1,3 +1,5 @@
+/** For testing reaper logic in isolation */
+
 import { claimJob } from "../jobs/claim-job.js";
 import { reapExpiredJobs } from "../jobs/reap-expired-jobs.js";
 

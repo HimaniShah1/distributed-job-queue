@@ -13,7 +13,7 @@ export type JobProcessor = (job: Job) => Promise<void>;
 
 export const processNextJob = async (
   workerId: string,
-  processor: JobProcessor
+  processor: JobProcessor,
 ): Promise<boolean> => {
   const job = await claimJob(workerId);
 
@@ -23,35 +23,26 @@ export const processNextJob = async (
 
   /** Keep extending the lease while this worker owns the job */
   const heartbeat = setInterval(async () => {
-  const alive = await heartbeatJob(
-    job.id,
-    job.lease_id!
-  );
+    const alive = await heartbeatJob(job.id, job.lease_id!);
 
-  if (!alive) {
-    clearInterval(heartbeat);
-    return;
-  }
-}, 2000);
+    if (!alive) {
+      clearInterval(heartbeat);
+      return;
+    }
+  }, 2000);
 
   try {
     await processor(job);
 
     await completeJob(job.id, job.lease_id!);
   } catch (error) {
-    const errorMessage =
-      error instanceof Error ? error.message : String(error);
+    const errorMessage = error instanceof Error ? error.message : String(error);
 
-   const failedJob = await failJob(
-      job.id,
-      job.lease_id!,
-      errorMessage
-    );
+    const failedJob = await failJob(job.id, job.lease_id!, errorMessage);
 
     console.log(
-      `[FAILED] ${failedJob?.id} -> ${failedJob?.status} (attempt ${failedJob?.attempt_number})`
+      `[FAILED] ${failedJob?.id} -> ${failedJob?.status} (attempt ${failedJob?.attempt_number})`,
     );
-
   } finally {
     clearInterval(heartbeat);
   }
@@ -61,27 +52,29 @@ export const processNextJob = async (
 
 export const startWorker = async (
   workerId: string,
-  processor: JobProcessor
+  processor: JobProcessor,
 ): Promise<never> => {
   /** Dedicated LISTEN connection for this worker */
   await initializeListener();
 
   while (true) {
     /** Drain the queue before going back to sleep */
-    while (
-      await processNextJob(
-        workerId,
-        processor
-      )
-    ) {}
+    while (await processNextJob(workerId, processor)) {}
 
     console.log(`[${workerId}] Waiting for work...`);
 
     /** Sleep until a producer notifies us, or periodically wake up as a safety net */
-    await Promise.race([
-      waitForNotification(),
-      sleep(30000),
-    ]);
+    const controller = new AbortController();
+
+    try {
+      await Promise.race([
+        waitForNotification(controller.signal),
+        sleep(30000),
+      ]);
+    } finally {
+      /** Always clean up the notification listener before waiting again */
+      controller.abort();
+    }
 
     console.log(`[${workerId}] Woken up.`);
   }

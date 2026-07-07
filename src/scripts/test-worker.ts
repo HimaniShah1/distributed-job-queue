@@ -6,22 +6,24 @@ const sleep = (ms: number): Promise<void> =>
   new Promise((resolve) => setTimeout(resolve, ms));
 
 const main = async (): Promise<void> => {
-//   await seedJobs([
-//     {
-//   processingTimeMs: 30000,
-//   shouldFail: false,
-// }
-//   ]);
+  //   await seedJobs([
+  //     {
+  //   processingTimeMs: 30000,
+  //   shouldFail: false,
+  // }
+  //   ]);
+
+  const workerId = process.argv[2] ?? "worker-1";
 
   console.log("Starting worker...");
 
-  await startWorker("worker-1", async (job) => {
+  await startWorker(workerId, async (job) => {
     const payload = job.payload as {
       processingTimeMs?: number;
       shouldFail?: boolean;
     };
 
-    console.log(`Processing ${job.id}`);
+    console.log(`[${workerId}] Processing ${job.id}`);
 
     await sleep(payload.processingTimeMs ?? 100);
 
@@ -29,7 +31,7 @@ const main = async (): Promise<void> => {
       throw new Error("Intentional failure");
     }
 
-    console.log(`Completed ${job.id}`);
+    console.log(`[${workerId}] Completed ${job.id}`);
   });
 };
 
