@@ -6,12 +6,12 @@ const sleep = (ms: number): Promise<void> =>
   new Promise((resolve) => setTimeout(resolve, ms));
 
 const main = async (): Promise<void> => {
-  await seedJobs([
-    {
-  processingTimeMs: 30000,
-  shouldFail: false,
-}
-  ]);
+//   await seedJobs([
+//     {
+//   processingTimeMs: 30000,
+//   shouldFail: false,
+// }
+//   ]);
 
   console.log("Starting worker...");
 

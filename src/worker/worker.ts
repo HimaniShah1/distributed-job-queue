@@ -1,7 +1,8 @@
-import { claimJob } from "../jobs/claim-job.js";
-import { completeJob } from "../jobs/complete-job.js";
-import { failJob } from "../jobs/fail-job.js";
-import { heartbeatJob } from "../jobs/heartbeat-job.js";
+import { initializeListener, waitForNotification } from "../db/listener";
+import { claimJob } from "../jobs/claim-job";
+import { completeJob } from "../jobs/complete-job";
+import { failJob } from "../jobs/fail-job";
+import { heartbeatJob } from "../jobs/heartbeat-job";
 
 import type { Job } from "../types/jobs.js";
 
@@ -20,6 +21,7 @@ export const processNextJob = async (
     return false;
   }
 
+  /** Keep extending the lease while this worker owns the job */
   const heartbeat = setInterval(async () => {
   const alive = await heartbeatJob(
     job.id,
@@ -61,15 +63,26 @@ export const startWorker = async (
   workerId: string,
   processor: JobProcessor
 ): Promise<never> => {
-  while (true) {
-    const processed = await processNextJob(
-      workerId,
-      processor
-    );
+  /** Dedicated LISTEN connection for this worker */
+  await initializeListener();
 
-    if (!processed) {
-      await sleep(1000);
-    }
+  while (true) {
+    /** Drain the queue before going back to sleep */
+    while (
+      await processNextJob(
+        workerId,
+        processor
+      )
+    ) {}
+
+    console.log(`[${workerId}] Waiting for work...`);
+
+    /** Sleep until a producer notifies us, or periodically wake up as a safety net */
+    await Promise.race([
+      waitForNotification(),
+      sleep(30000),
+    ]);
+
+    console.log(`[${workerId}] Woken up.`);
   }
 };
-
