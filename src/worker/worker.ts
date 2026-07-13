@@ -11,9 +11,14 @@ const sleep = (ms: number): Promise<void> =>
 
 export type JobProcessor = (job: Job) => Promise<void>;
 
+export type StartWorkerOptions = {
+  benchmark?: boolean;
+};
+
 export const processNextJob = async (
   workerId: string,
   processor: JobProcessor,
+  options: StartWorkerOptions = {},
 ): Promise<boolean> => {
   const job = await claimJob(workerId);
 
@@ -27,7 +32,6 @@ export const processNextJob = async (
 
     if (!alive) {
       clearInterval(heartbeat);
-      return;
     }
   }, 2000);
 
@@ -36,13 +40,20 @@ export const processNextJob = async (
 
     await completeJob(job.id, job.lease_id!);
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
+    const errorMessage =
+      error instanceof Error ? error.message : String(error);
 
-    const failedJob = await failJob(job.id, job.lease_id!, errorMessage);
-
-    console.log(
-      `[FAILED] ${failedJob?.id} -> ${failedJob?.status} (attempt ${failedJob?.attempt_number})`,
+    const failedJob = await failJob(
+      job.id,
+      job.lease_id!,
+      errorMessage,
     );
+
+    if (!options.benchmark) {
+      console.log(
+        `[FAILED] ${failedJob?.id} -> ${failedJob?.status} (attempt ${failedJob?.attempt_number})`,
+      );
+    }
   } finally {
     clearInterval(heartbeat);
   }
@@ -53,15 +64,24 @@ export const processNextJob = async (
 export const startWorker = async (
   workerId: string,
   processor: JobProcessor,
+  options: StartWorkerOptions = {},
 ): Promise<never> => {
   /** Dedicated LISTEN connection for this worker */
   await initializeListener();
 
   while (true) {
     /** Drain the queue before going back to sleep */
-    while (await processNextJob(workerId, processor)) {}
+    while (
+      await processNextJob(
+        workerId,
+        processor,
+        options,
+      )
+    ) {}
 
-    console.log(`[${workerId}] Waiting for work...`);
+    if (!options.benchmark) {
+      console.log(`[${workerId}] Waiting for work...`);
+    }
 
     /** Sleep until a producer notifies us, or periodically wake up as a safety net */
     const controller = new AbortController();
@@ -76,6 +96,8 @@ export const startWorker = async (
       controller.abort();
     }
 
-    console.log(`[${workerId}] Woken up.`);
+    if (!options.benchmark) {
+      console.log(`[${workerId}] Woken up.`);
+    }
   }
-};
+}

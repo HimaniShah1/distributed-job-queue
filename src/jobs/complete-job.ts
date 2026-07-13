@@ -49,10 +49,6 @@ export const completeJob = async (
 
     await client.query("COMMIT");
 
-    console.dir(job, {
-  depth: null,
-});
-
     return job;
   } catch (error) {
     await client.query("ROLLBACK");
