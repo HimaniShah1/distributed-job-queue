@@ -1,18 +1,18 @@
 # Distributed Job Queue
 
-A production-inspired distributed job queue built from scratch using Node.js, TypeScript, and PostgreSQL.
+A production-inspired distributed job queue built from scratch using **Node.js**, **TypeScript**, and **PostgreSQL**.
 
-The goal of this project is not to build another queue library.
+The goal of this project isn't to build another queue library.
 
-The goal is to understand the engineering decisions behind systems like BullMQ, Sidekiq, Faktory, and Amazon SQS by implementing the core primitives myself and documenting every tradeoff along the way.
+The goal is to understand how production-grade systems like BullMQ, Sidekiq, Faktory, and Amazon SQS actually work by implementing their core primitives from first principles and documenting the engineering tradeoffs behind every decision.
 
-This repository serves as both an implementation and an engineering journal.
+This repository serves as both a working implementation and an engineering journal.
 
 ---
 
-## Why This Project Exists
+# Why This Project Exists
 
-Most developers interact with queues through a simple API:
+Most developers interact with queues through an API that looks something like this:
 
 ```ts
 await queue.add(job);
@@ -24,76 +24,114 @@ and later:
 await worker.process(job);
 ```
 
-The difficult engineering problems happen in between.
+The interesting engineering problems happen in between.
 
 Questions I wanted to answer:
 
-* How does a worker claim a job without another worker claiming the same one?
+* How does a worker claim a job without another worker claiming it?
 * What happens when a worker crashes after claiming a job?
-* How are retries coordinated safely?
-* How do queue systems recover from partial failures?
-* Why do queues use leases and visibility timeouts?
-* How do systems prevent duplicate execution?
-* What operational data is needed to debug production incidents?
+* How do retries happen safely?
+* How are duplicate acknowledgements prevented?
+* Why do queue systems use leases instead of worker IDs?
+* How are long-running jobs protected?
+* How do production systems recover from partial failures?
+* How do multiple workers coordinate without processing the same job twice?
 
-Instead of treating queue systems as black boxes, this project attempts to build those primitives from first principles.
+Instead of treating distributed queues as black boxes, this project builds those primitives one at a time.
 
 ---
 
-## Why PostgreSQL?
+# Why PostgreSQL?
 
 Most tutorials immediately reach for Redis, RabbitMQ, Kafka, or a managed queue service.
 
-This project intentionally uses PostgreSQL to explore:
+This project intentionally uses PostgreSQL to understand:
 
 * Row-level locking
 * Transactions
 * `FOR UPDATE SKIP LOCKED`
-* Lease-based ownership
 * Visibility timeouts
-* Failure recovery
+* Lease-based ownership
+* Worker crash recovery
+* Retry coordination
 * Queue schema design
 * Operational tradeoffs
 
-The objective is not to prove PostgreSQL is the best queue backend.
+The objective isn't to prove PostgreSQL is the best queue backend.
 
-The objective is to understand the mechanisms that queue systems rely on internally.
+The objective is to understand the mechanisms that production queue systems rely on internally.
 
 ---
 
-## Current Architecture
+# Features
+
+* Atomic job claiming using `FOR UPDATE SKIP LOCKED`
+* Multiple concurrent workers
+* Lease-based ownership
+* Heartbeats
+* Visibility timeouts
+* Worker crash recovery
+* Automatic retries
+* Reaper for expired leases
+* PostgreSQL `LISTEN / NOTIFY`
+* Idempotent job creation
+* Job execution history
+* Local benchmarking framework
+
+---
+
+# Architecture
 
 ```text
-Producer
-    │
-    ▼
-createJob()
-    │
-    ▼
- PostgreSQL
-    │
-    ▼
-claimJob()
-    │
-    ▼
-job_attempts
+                    Producer
+                        │
+                        ▼
+                  createJob()
+                        │
+             INSERT + NOTIFY
+                        │
+                        ▼
+                  PostgreSQL
+                        │
+        ┌───────────────┼───────────────┐
+        ▼               ▼               ▼
+     Worker 1        Worker 2       Worker N
+        │               │               │
+        └────── claimJob() ─────────────┘
+                        │
+                 SKIP LOCKED
+                        │
+                  Heartbeats
+                        │
+            Complete / Retry / Fail
+                        │
+                        ▼
+                 job_attempts
+                        │
+                        ▼
+                     Reaper
+           Reclaims expired leases
 ```
-
-Current implementation supports:
-
-* Job creation
-* Optional idempotency keys
-* Atomic job claiming
-* Lease generation
-* Attempt tracking
-
-Worker execution, retries, and recovery are currently in progress.
 
 ---
 
-## Current Schema
+# Reliability Guarantees
 
-### jobs
+The queue currently provides:
+
+* At-least-once delivery
+* Atomic job claiming
+* Lease-based ownership
+* Safe acknowledgements using lease validation
+* Automatic recovery from worker crashes
+* Concurrent processing using `FOR UPDATE SKIP LOCKED`
+* Push-based worker wake-up using PostgreSQL `LISTEN / NOTIFY`
+
+---
+
+# Current Database Schema
+
+## jobs
 
 Stores the latest state of every job.
 
@@ -126,9 +164,11 @@ created_at
 updated_at
 ```
 
-### job_attempts
+---
 
-Stores the execution history of a job.
+## job_attempts
+
+Stores the complete execution history for every processing attempt.
 
 ```text
 id
@@ -151,213 +191,209 @@ created_at
 
 ---
 
-## Design Decisions & Tradeoffs
+# Core Concepts
 
-### Migration Strategy
+## Atomic Job Claiming
 
-Decision:
-
-* Use raw SQL migrations.
-* Build a custom migration runner.
-
-Reason:
-
-* Understand how migration systems work internally.
-* Keep schema evolution explicit and versioned.
-
-Tradeoff:
-
-* More code compared to using an existing migration framework.
-
-Future Improvement:
-
-* Migration checksums similar to Flyway.
-
----
-
-### Migration Tracking
-
-Decision:
-
-* Store applied migrations in a `schema_migrations` table.
-
-Reason:
-
-* Prevent previously applied migrations from executing again.
-
-Tradeoff:
-
-* Assumes migration files are immutable after execution.
-
-Future Improvement:
-
-* Detect modified migration files using checksums.
-
----
-
-### Job State vs Attempt History
-
-Decision:
-
-* Store current state in `jobs`.
-* Store execution history in `job_attempts`.
-
-Reason:
-
-* The jobs table should represent the latest state of a job.
-* Historical execution data should not overwrite current state.
-
-Tradeoff:
-
-* Additional write operations.
-* Additional storage usage.
-
-Benefit:
-
-* Full audit trail for debugging retries, failures, and worker crashes.
-
----
-
-### Lease-Based Ownership
-
-Decision:
-
-* Use both `worker_id` and `lease_id`.
-
-Reason:
-
-A worker identity alone is not enough to represent ownership.
-
-A worker may:
-
-* Crash
-* Restart
-* Reclaim the same job later
-* Claim a retried version of the same job
-
-The lease represents a specific ownership period of a job.
-
-Tradeoff:
-
-* Additional complexity.
-* Additional validation logic.
-
-Benefit:
-
-* Safe acknowledgements and ownership verification.
-
----
-
-### Idempotency Keys
-
-Decision:
-
-* Idempotency keys are optional.
-* Generated by the producer when required.
-
-Reason:
-
-The queue cannot determine whether two enqueue requests represent the same business operation.
-
-That decision belongs to the producer.
-
-Tradeoff:
-
-* Producers must decide when deduplication is needed.
-
-Benefit:
-
-* Flexibility across different workloads.
-
----
-
-### PostgreSQL Connection Pooling
-
-Decision:
-
-* Use `pg.Pool`.
-
-Reason:
-
-Production systems reuse connections instead of creating a new connection for every query.
-
-Tradeoff:
-
-* Requires proper lifecycle management and cleanup.
-
----
-
-### Logging
-
-Decision:
-
-* Use Pino.
-
-Reason:
-
-Structured logs are easier to query and analyze than plain console output.
-
----
-
-## Key Concepts Explored So Far
-
-### Atomic Job Claiming
-
-Workers claim jobs using:
+Workers atomically claim jobs using PostgreSQL row-level locking.
 
 ```sql
 FOR UPDATE SKIP LOCKED
 ```
 
-This prevents multiple workers from claiming the same job while allowing concurrent workers to continue processing other available jobs.
+This guarantees that multiple workers can safely process the queue concurrently without claiming the same job.
 
 ---
 
-### Visibility Timeouts
+## Lease-Based Ownership
 
-Claimed jobs receive a visibility timeout.
+Every successful claim generates a unique lease.
 
-If a worker disappears and stops making progress, the queue can eventually reclaim ownership and retry the work.
+Workers never acknowledge jobs using only a worker ID.
 
-Implementation is currently in progress.
+Instead, every completion, failure, or heartbeat validates the lease before updating the database.
 
----
-
-### Leases
-
-Every claim generates a new lease identifier.
-
-Ownership is tied to the lease rather than the worker itself.
-
-This prevents stale workers from acknowledging work they no longer own.
-
-Implementation is currently in progress.
+This prevents stale workers from modifying jobs they no longer own.
 
 ---
 
-## Development Progress
+## Visibility Timeouts
 
-### Phase 0 — Research
+Every claimed job receives a visibility timeout.
 
-Completed:
+While processing, workers periodically extend this timeout using heartbeats.
 
-* Studied PostgreSQL queue architectures
-* Studied row-level locking
-* Studied `FOR UPDATE SKIP LOCKED`
-* Studied visibility timeouts
-* Studied lease-based ownership
-* Studied retry semantics
-* Studied worker crash recovery
+If a worker crashes before completing the job, the timeout eventually expires, allowing another worker to safely reclaim the work.
 
 ---
 
-### Phase 1 — Foundation
+## Heartbeats
 
-Completed:
+Workers periodically renew their lease while processing long-running jobs.
 
-* Project setup
+This prevents legitimate work from being reclaimed prematurely while still allowing crashed workers to be detected automatically.
+
+---
+
+## Automatic Retries
+
+Failed jobs are returned to the queue until their configured retry limit is reached.
+
+Retry state is coordinated through the database to ensure ownership remains consistent across worker failures.
+
+---
+
+## Reaper
+
+A background reaper periodically scans for expired leases.
+
+Jobs whose visibility timeout has expired are moved back to the pending state, making them available for another worker to process.
+
+This enables automatic recovery from worker crashes.
+
+---
+
+## PostgreSQL LISTEN / NOTIFY
+
+Workers use PostgreSQL's publish/subscribe mechanism to avoid constant polling.
+
+When a producer creates a new job, PostgreSQL immediately wakes sleeping workers using `NOTIFY`.
+
+Workers still perform periodic polling as a safety mechanism in case notifications are missed due to temporary network interruptions or listener reconnects.
+
+---
+
+## Job Attempt History
+
+The queue separates the latest job state from execution history.
+
+* `jobs` stores the current state.
+* `job_attempts` stores every processing attempt.
+
+This provides a complete audit trail for retries, failures, and worker crashes.
+
+---
+
+# Design Decisions
+
+## PostgreSQL Instead of Redis
+
+**Decision**
+
+Use PostgreSQL as the queue backend.
+
+**Reason**
+
+Understand how transactional databases can coordinate distributed workers using locking and transactions.
+
+**Tradeoff**
+
+Lower throughput than an in-memory queue but significantly stronger transactional guarantees.
+
+---
+
+## Lease-Based Ownership
+
+**Decision**
+
+Use both `worker_id` and `lease_id`.
+
+**Reason**
+
+A worker can restart, reclaim a job, or process multiple attempts.
+
+The lease represents ownership of a specific execution rather than ownership by a worker process.
+
+---
+
+## Separate Attempt History
+
+**Decision**
+
+Store execution history in a separate table.
+
+**Reason**
+
+Current job state should remain small while historical execution data remains queryable.
+
+---
+
+## Optional Idempotency Keys
+
+**Decision**
+
+Allow producers to provide idempotency keys.
+
+**Reason**
+
+Only the producer knows whether two enqueue requests represent the same business operation.
+
+---
+
+## Raw SQL Migrations
+
+**Decision**
+
+Build a custom migration system.
+
+**Reason**
+
+Understand how migration frameworks work internally while keeping schema evolution explicit.
+
+---
+
+## Structured Logging
+
+**Decision**
+
+Use Pino.
+
+**Reason**
+
+Structured logs are significantly easier to search and analyze than plain console output.
+
+---
+
+# Performance
+
+Local benchmark environment:
+
+* Apple MacBook Air M2
+* PostgreSQL 17 (Docker)
+* Node.js
+* TypeScript
+
+Benchmark measures queue overhead using an empty job processor to isolate claiming, leasing, acknowledgements, and scheduling.
+
+| Workers |   Jobs |      Throughput |
+| ------: | -----: | --------------: |
+|       1 | 10,000 |   ~344 jobs/sec |
+|       2 | 10,000 |   ~664 jobs/sec |
+|       4 | 10,000 |   ~905 jobs/sec |
+|       8 | 10,000 | ~1,239 jobs/sec |
+
+Throughput increases with additional workers until PostgreSQL becomes the primary coordination bottleneck due to shared transactional resources.
+
+---
+
+# Development Progress
+
+## Phase 0 — Research
+
+* PostgreSQL queue architectures
+* Row-level locking
+* `FOR UPDATE SKIP LOCKED`
+* Visibility timeouts
+* Lease-based ownership
+* Retry semantics
+* Worker crash recovery
+
+---
+
+## Phase 1 — Foundation
+
 * Dockerized PostgreSQL
-* TypeScript configuration
+* TypeScript project setup
 * Environment configuration
 * Pino logging
 * PostgreSQL connection pooling
@@ -366,63 +402,67 @@ Completed:
 
 ---
 
-### Phase 2 — Core Queue Primitives
+## Phase 2 — Core Queue
 
-Completed:
-
-* Jobs table schema
-* Job attempts table schema
-* `createJob()`
-* Optional idempotency key support
-* Atomic job claiming
+* Jobs schema
+* Job attempts schema
+* Job creation
+* Idempotency support
+* Atomic claiming
 * Lease generation
-* Visibility timeout metadata
-* Job attempt creation
 * Transactional claim flow
 
 ---
 
-### Phase 3 — Worker Lifecycle
-
-In Progress:
+## Phase 3 — Worker Lifecycle
 
 * Job completion
-* Job failure handling
+* Failure handling
 * Lease validation
-* Retry lifecycle
+* Automatic retries
+* Heartbeats
 
 ---
 
-### Future Phases
-
-Phase 4
+## Phase 4 — Recovery
 
 * Visibility timeout recovery
 * Reaper process
-
-Phase 5
-
-* Exponential retry backoff
-* Dead Letter Queue
-
-Phase 6
-
-* Worker execution engine
-* Heartbeats
-
-Phase 7
-
-* PostgreSQL LISTEN/NOTIFY
-
-Phase 8
-
-* Metrics
-* Dashboard
-* Operational tooling
+* Worker crash recovery
 
 ---
 
-## Running The Project
+## Phase 5 — Worker Coordination
+
+* PostgreSQL `LISTEN / NOTIFY`
+* Multiple concurrent workers
+* Crash recovery testing
+* Concurrent worker testing
+
+---
+
+## Phase 6 — Benchmarking
+
+* Local benchmarking framework
+* Multi-worker scalability testing
+* Throughput benchmarking
+
+---
+
+## Next Milestones
+
+* Metrics endpoint
+* Real-time dashboard
+* PostgreSQL query profiling
+* Performance optimization
+* Bulk enqueue optimization
+* Distributed consensus (Raft)
+* gRPC-based node communication
+* PostgreSQL replacement with a custom distributed coordination layer
+
+---
+
+# Running the Project
 
 ```bash
 docker compose up -d
@@ -436,13 +476,14 @@ npm run dev
 
 ---
 
-## Project Status
+# Project Status
 
 🚧 Active Development
 
-Current Focus:
+Current focus:
 
-* Job completion flow
-* Failure handling
-* Retry lifecycle
-* Lease validation
+* Observability dashboard
+* Metrics endpoint
+* PostgreSQL profiling
+* Performance tuning
+* Distributed systems primitives beyond PostgreSQL
