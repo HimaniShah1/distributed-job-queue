@@ -4,13 +4,21 @@ export const schema = /* GraphQL */ `
     uptime: Float!
   }
 
+  type JobStats {
+    pending: Int!
+    processing: Int!
+    completed: Int!
+    failed: Int!
+  }
+
+  type WorkerStats {
+    active: Int!
+  }
+
   type DashboardStats {
-  pendingJobs: Int!
-  processingJobs: Int!
-  completedJobs: Int!
-  failedJobs: Int!
-  activeWorkers: Int!
-}
+    jobs: JobStats!
+    workers: WorkerStats!
+  }
 
   type Query {
     health: Health!
