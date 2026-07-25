@@ -28,14 +28,17 @@ export function KPIGrid() {
 
   if (error) {
     return (
-      <div className="rounded-lg border border-error/40 bg-error/10 p-4 text-sm text-error">
+      <div role="alert" className="rounded-lg border border-error/40 bg-error/10 p-4 text-sm text-error">
         Failed to load dashboard stats: {error.message}
       </div>
     );
   }
 
   return (
-    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
+    <div
+      className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-5"
+      aria-busy={loading}
+    >
       {KPI_CARDS.map((card) => (
         <StatCard
           key={card.key}

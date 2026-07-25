@@ -59,7 +59,7 @@ export function StatCard({
         {loading ? (
           <Skeleton className="h-8 w-16" />
         ) : (
-          <span className="text-2xl font-semibold tracking-tight text-foreground">{value}</span>
+          <span className="text-2xl font-semibold tracking-tight text-foreground">{value ?? '—'}</span>
         )}
         {!loading && sparkline}
       </div>
