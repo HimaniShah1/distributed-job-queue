@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useQuery } from '@apollo/client/react';
 import { NetworkStatus } from '@apollo/client';
 
@@ -11,13 +11,15 @@ export function useDashboardStats(autoSync: boolean) {
     notifyOnNetworkStatusChange: true,
   });
 
+  const [previousNetworkStatus, setPreviousNetworkStatus] = useState(networkStatus);
   const [lastUpdatedAt, setLastUpdatedAt] = useState<Date | undefined>(undefined);
 
-  useEffect(() => {
+  if (networkStatus !== previousNetworkStatus) {
+    setPreviousNetworkStatus(networkStatus);
     if (networkStatus === NetworkStatus.ready) {
       setLastUpdatedAt(new Date());
     }
-  }, [networkStatus]);
+  }
 
   return {
     stats: data?.dashboardStats,
