@@ -11,9 +11,18 @@ export function useDashboardStats(autoSync: boolean) {
     notifyOnNetworkStatusChange: true,
   });
 
-  const [previousNetworkStatus, setPreviousNetworkStatus] = useState(networkStatus);
+  const [previousNetworkStatus, setPreviousNetworkStatus] = useState<NetworkStatus | undefined>(
+    undefined,
+  );
   const [lastUpdatedAt, setLastUpdatedAt] = useState<Date | undefined>(undefined);
 
+  // This is React's documented "adjust state when a value changes during render" pattern
+  // (see https://react.dev/learn/you-might-not-need-an-effect#adjusting-some-state-when-a-prop-changes),
+  // not a bug. It must NOT be moved into a useEffect — this project's react-hooks/set-state-in-effect
+  // rule forbids setting state from an effect. It must NOT be replaced with a useRef mutated during
+  // render either — this project's react-hooks/refs rule forbids that too. It cannot loop: the
+  // condition below is false on the immediate re-render the setState call triggers, so it converges
+  // after exactly one extra render.
   if (networkStatus !== previousNetworkStatus) {
     setPreviousNetworkStatus(networkStatus);
     if (networkStatus === NetworkStatus.ready) {
