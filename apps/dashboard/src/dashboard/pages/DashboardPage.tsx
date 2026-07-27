@@ -5,11 +5,15 @@ import { KPIGrid } from '../kpi';
 export function DashboardPage() {
   return (
     <DashboardLayout>
-      <h1 className="text-2xl font-semibold text-foreground">{DASHBOARD_TITLE}</h1>
-      <p className="mt-1 text-sm text-muted-foreground">{DASHBOARD_SUBTITLE}</p>
-      <div className="mt-6">
-        <KPIGrid />
-      </div>
+      {({ stats, loading, error }) => (
+        <>
+          <h1 className="text-2xl font-semibold text-foreground">{DASHBOARD_TITLE}</h1>
+          <p className="mt-1 text-sm text-muted-foreground">{DASHBOARD_SUBTITLE}</p>
+          <div className="mt-6">
+            <KPIGrid stats={stats} loading={loading} error={error} />
+          </div>
+        </>
+      )}
     </DashboardLayout>
   );
 }

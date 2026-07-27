@@ -1,8 +1,8 @@
 import { Activity, Clock, CircleCheck, TriangleAlert, Users } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
+import type { ErrorLike } from '@apollo/client';
 
 import type { DashboardStatsQuery } from '../../gql/graphql';
-import { useDashboardStats } from '../hooks/useDashboardStats';
 import { StatCard, type StatCardTone } from './StatCard';
 
 type DashboardStats = DashboardStatsQuery['dashboardStats'];
@@ -23,9 +23,13 @@ const KPI_CARDS: KPICardConfig[] = [
   { key: 'workers', label: 'Active Workers', icon: Users, tone: 'info', getValue: (stats) => stats.workers.active },
 ];
 
-export function KPIGrid() {
-  const { stats, loading, error } = useDashboardStats();
+interface KPIGridProps {
+  stats: DashboardStats | undefined;
+  loading: boolean;
+  error: ErrorLike | undefined;
+}
 
+export function KPIGrid({ stats, loading, error }: KPIGridProps) {
   if (error) {
     return (
       <div role="alert" className="rounded-lg border border-error/40 bg-error/10 p-4 text-sm text-error">
