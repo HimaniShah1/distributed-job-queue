@@ -30,7 +30,7 @@ interface KPIGridProps {
 }
 
 export function KPIGrid({ stats, loading, error }: KPIGridProps) {
-  if (error) {
+  if (error && !stats) {
     return (
       <div role="alert" className="rounded-lg border border-error/40 bg-error/10 p-4 text-sm text-error">
         Failed to load dashboard stats: {error.message}
@@ -39,20 +39,27 @@ export function KPIGrid({ stats, loading, error }: KPIGridProps) {
   }
 
   return (
-    <div
-      className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-5"
-      aria-busy={loading}
-    >
-      {KPI_CARDS.map((card) => (
-        <StatCard
-          key={card.key}
-          label={card.label}
-          icon={card.icon}
-          tone={card.tone}
-          value={stats ? card.getValue(stats) : undefined}
-          loading={loading}
-        />
-      ))}
+    <div className="flex flex-col gap-3">
+      {error && stats ? (
+        <div role="status" className="rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-xs text-warning">
+          Couldn't refresh dashboard stats — showing the last known values.
+        </div>
+      ) : null}
+      <div
+        className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-5"
+        aria-busy={loading}
+      >
+        {KPI_CARDS.map((card) => (
+          <StatCard
+            key={card.key}
+            label={card.label}
+            icon={card.icon}
+            tone={card.tone}
+            value={stats ? card.getValue(stats) : undefined}
+            loading={loading}
+          />
+        ))}
+      </div>
     </div>
   );
 }

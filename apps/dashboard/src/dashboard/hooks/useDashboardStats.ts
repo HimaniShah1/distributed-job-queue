@@ -9,6 +9,7 @@ export function useDashboardStats(autoSync: boolean) {
   const { data, loading, error, networkStatus } = useQuery(DASHBOARD_STATS_QUERY, {
     pollInterval: autoSync ? AUTO_SYNC_POLL_INTERVAL_MS : 0,
     notifyOnNetworkStatusChange: true,
+    errorPolicy: 'all',
   });
 
   const [previousNetworkStatus, setPreviousNetworkStatus] = useState<NetworkStatus | undefined>(
