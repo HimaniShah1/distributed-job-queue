@@ -9,11 +9,17 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { cn } from '@/lib/utils';
 import { ThemeToggle } from './ThemeToggle';
 
 const TIME_RANGES = ['Last hour', 'Last 24 hours', 'Last 7 days', 'Last 30 days'];
 
-export function Header() {
+interface HeaderProps {
+  autoSync: boolean;
+  onAutoSyncChange: (value: boolean) => void;
+}
+
+export function Header({ autoSync, onAutoSyncChange }: HeaderProps) {
   return (
     <header className="flex flex-wrap items-center justify-between gap-3 border-b border-border bg-background px-4 py-3 lg:px-6">
       <div className="relative w-full max-w-sm">
@@ -32,15 +38,25 @@ export function Header() {
           <DropdownMenuTrigger render={<Button variant="outline" className="gap-2" />}>
             <RefreshCw className="size-4" strokeWidth={1.75} />
             <span className="hidden sm:inline">Auto sync</span>
-            <span className="flex items-center gap-1 text-success">
-              <span className="size-1.5 rounded-full bg-success" />
-              On
+            <span
+              className={cn(
+                'flex items-center gap-1',
+                autoSync ? 'text-success' : 'text-muted-foreground',
+              )}
+            >
+              <span
+                className={cn(
+                  'size-1.5 rounded-full',
+                  autoSync ? 'bg-success' : 'bg-muted-foreground',
+                )}
+              />
+              {autoSync ? 'On' : 'Off'}
             </span>
             <ChevronDown className="size-3.5 text-muted-foreground" strokeWidth={1.75} />
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            <DropdownMenuItem>On</DropdownMenuItem>
-            <DropdownMenuItem>Off</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => onAutoSyncChange(true)}>On</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => onAutoSyncChange(false)}>Off</DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
 

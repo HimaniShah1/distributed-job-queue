@@ -1,4 +1,8 @@
-export function SystemStatusCard() {
+interface SystemStatusCardProps {
+  lastUpdatedAt: Date | undefined;
+}
+
+export function SystemStatusCard({ lastUpdatedAt }: SystemStatusCardProps) {
   return (
     <div className="hidden flex-col gap-2 rounded-md border border-sidebar-border bg-card px-3 py-2.5 lg:flex">
       <span className="text-xs font-medium text-muted-foreground">System Status</span>
@@ -13,7 +17,9 @@ export function SystemStatusCard() {
           <span>Connected</span>
         </div>
       </div>
-      <span className="text-xs text-muted-foreground/70">Last updated: 10s ago</span>
+      <span className="text-xs text-muted-foreground/70">
+        Last updated: {lastUpdatedAt ? lastUpdatedAt.toLocaleTimeString() : '—'}
+      </span>
     </div>
   );
 }

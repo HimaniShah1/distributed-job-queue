@@ -5,7 +5,11 @@ import { NavItem } from './NavItem';
 import { SidebarSection } from './SidebarSection';
 import { SystemStatusCard } from './SystemStatusCard';
 
-export function Sidebar() {
+interface SidebarProps {
+  lastUpdatedAt: Date | undefined;
+}
+
+export function Sidebar({ lastUpdatedAt }: SidebarProps) {
   return (
     <aside className="flex w-16 shrink-0 flex-col gap-6 border-r border-sidebar-border bg-sidebar px-2 py-4 lg:w-60 lg:px-3">
       <Logo />
@@ -25,7 +29,7 @@ export function Sidebar() {
         ))}
       </nav>
 
-      <SystemStatusCard />
+      <SystemStatusCard lastUpdatedAt={lastUpdatedAt} />
 
       <div className="flex items-center gap-2.5 border-t border-sidebar-border pt-3">
         <Avatar>
