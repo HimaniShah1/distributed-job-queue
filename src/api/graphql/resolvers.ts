@@ -12,5 +12,9 @@ export const resolvers = {
     dashboardStats: async () => {
       return dashboardService.getDashboardStats();
     },
+
+    queueMetrics: async () => {
+      return dashboardService.getQueueMetrics();
+    },
   },
 };
