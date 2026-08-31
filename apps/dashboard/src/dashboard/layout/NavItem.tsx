@@ -1,17 +1,22 @@
 import type { LucideIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { navigate } from '@/lib/router';
 
 interface NavItemProps {
   label: string;
+  href: string;
   icon: LucideIcon;
   active?: boolean;
 }
 
-export function NavItem({ label, icon: Icon, active = false }: NavItemProps) {
+export function NavItem({ label, href, icon: Icon, active = false }: NavItemProps) {
   return (
     <a
-      href="#"
-      onClick={(event) => event.preventDefault()}
+      href={href}
+      onClick={(event) => {
+        event.preventDefault();
+        navigate(href);
+      }}
       aria-current={active ? 'page' : undefined}
       className={cn(
         'flex items-center gap-2.5 rounded-md px-2.5 py-1.5 text-sm transition-colors',

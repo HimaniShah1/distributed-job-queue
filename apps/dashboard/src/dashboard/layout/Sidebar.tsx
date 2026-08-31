@@ -1,5 +1,6 @@
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { NAV_SECTIONS, ACTIVE_HREF } from '../constants/navigation';
+import { usePathname } from '@/lib/router';
+import { NAV_SECTIONS } from '../constants/navigation';
 import { Logo } from './Logo';
 import { NavItem } from './NavItem';
 import { SidebarSection } from './SidebarSection';
@@ -10,6 +11,8 @@ interface SidebarProps {
 }
 
 export function Sidebar({ lastUpdatedAt }: SidebarProps) {
+  const pathname = usePathname();
+
   return (
     <aside className="flex w-16 shrink-0 flex-col gap-6 border-r border-sidebar-border bg-sidebar px-2 py-4 lg:w-60 lg:px-3">
       <Logo />
@@ -21,8 +24,9 @@ export function Sidebar({ lastUpdatedAt }: SidebarProps) {
               <NavItem
                 key={item.href}
                 label={item.label}
+                href={item.href}
                 icon={item.icon}
-                active={item.href === ACTIVE_HREF}
+                active={item.href === pathname}
               />
             ))}
           </SidebarSection>

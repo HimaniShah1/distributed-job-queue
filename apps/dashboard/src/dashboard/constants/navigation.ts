@@ -26,7 +26,7 @@ export interface NavSection {
 export const NAV_SECTIONS: NavSection[] = [
   {
     label: 'Overview',
-    items: [{ label: 'Dashboard', href: '/', icon: LayoutDashboard }],
+    items: [{ label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard }],
   },
   {
     label: 'Operations',
@@ -53,5 +53,3 @@ export const NAV_SECTIONS: NavSection[] = [
     ],
   },
 ];
-
-export const ACTIVE_HREF = '/';
