@@ -1,15 +1,19 @@
 import { useState, type ReactNode } from 'react';
 import type { ErrorLike } from '@apollo/client';
 
-import type { DashboardStatsQuery } from '../../gql/graphql';
+import type { DashboardStatsQuery, QueueMetricsQuery } from '../../gql/graphql';
 import { Sidebar } from './Sidebar';
 import { Header } from './Header';
 import { useDashboardStats } from '../hooks/useDashboardStats';
+import { useDashboardMetrics } from '../hooks/useDashboardMetrics';
 
 interface DashboardContentProps {
   stats: DashboardStatsQuery['dashboardStats'] | undefined;
   loading: boolean;
   error: ErrorLike | undefined;
+  metrics: QueueMetricsQuery['queueMetrics'] | undefined;
+  metricsLoading: boolean;
+  metricsError: ErrorLike | undefined;
 }
 
 interface DashboardLayoutProps {
@@ -19,6 +23,7 @@ interface DashboardLayoutProps {
 export function DashboardLayout({ children }: DashboardLayoutProps) {
   const [autoSync, setAutoSync] = useState(true);
   const { stats, loading, error, lastUpdatedAt } = useDashboardStats(autoSync);
+  const { metrics, loading: metricsLoading, error: metricsError } = useDashboardMetrics(autoSync);
 
   return (
     <div className="flex min-h-svh w-full bg-background text-foreground">
@@ -26,7 +31,9 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       <div className="flex min-w-0 flex-1 flex-col">
         <Header autoSync={autoSync} onAutoSyncChange={setAutoSync} />
         <main className="flex-1 overflow-y-auto px-4 py-6 lg:px-6">
-          {typeof children === 'function' ? children({ stats, loading, error }) : children}
+          {typeof children === 'function'
+            ? children({ stats, loading, error, metrics, metricsLoading, metricsError })
+            : children}
         </main>
       </div>
     </div>

@@ -16,10 +16,12 @@ import type { TypedDocumentNode as DocumentNode } from '@graphql-typed-document-
 type Documents = {
     "\n  query DashboardStats {\n    dashboardStats {\n      jobs {\n        pending\n        processing\n        completed\n        failed\n      }\n      workers {\n        active\n      }\n    }\n  }\n": typeof types.DashboardStatsDocument,
     "\n  query Health {\n    health {\n      status\n      uptime\n    }\n  }\n": typeof types.HealthDocument,
+    "\n  query QueueMetrics {\n    queueMetrics {\n      health {\n        dlqCount\n        retryableFailedCount\n        oldestPendingAgeSeconds\n        expiredProcessingCount\n      }\n      latency {\n        p50QueueWaitMs\n        p95QueueWaitMs\n        p99QueueWaitMs\n        p50ProcessingTimeMs\n        p95ProcessingTimeMs\n        p99ProcessingTimeMs\n        p95EndToEndMs\n        p99EndToEndMs\n      }\n      reliability {\n        successRate\n        failureRate\n        retryRate\n      }\n      throughput {\n        createdPerMinute\n        claimedPerMinute\n        completedPerMinute\n        failedPerMinute\n      }\n      pool {\n        totalConnections\n        idleConnections\n        waitingClients\n      }\n    }\n  }\n": typeof types.QueueMetricsDocument,
 };
 const documents: Documents = {
     "\n  query DashboardStats {\n    dashboardStats {\n      jobs {\n        pending\n        processing\n        completed\n        failed\n      }\n      workers {\n        active\n      }\n    }\n  }\n": types.DashboardStatsDocument,
     "\n  query Health {\n    health {\n      status\n      uptime\n    }\n  }\n": types.HealthDocument,
+    "\n  query QueueMetrics {\n    queueMetrics {\n      health {\n        dlqCount\n        retryableFailedCount\n        oldestPendingAgeSeconds\n        expiredProcessingCount\n      }\n      latency {\n        p50QueueWaitMs\n        p95QueueWaitMs\n        p99QueueWaitMs\n        p50ProcessingTimeMs\n        p95ProcessingTimeMs\n        p99ProcessingTimeMs\n        p95EndToEndMs\n        p99EndToEndMs\n      }\n      reliability {\n        successRate\n        failureRate\n        retryRate\n      }\n      throughput {\n        createdPerMinute\n        claimedPerMinute\n        completedPerMinute\n        failedPerMinute\n      }\n      pool {\n        totalConnections\n        idleConnections\n        waitingClients\n      }\n    }\n  }\n": types.QueueMetricsDocument,
 };
 
 /**
@@ -44,6 +46,10 @@ export function graphql(source: "\n  query DashboardStats {\n    dashboardStats 
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(source: "\n  query Health {\n    health {\n      status\n      uptime\n    }\n  }\n"): (typeof documents)["\n  query Health {\n    health {\n      status\n      uptime\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  query QueueMetrics {\n    queueMetrics {\n      health {\n        dlqCount\n        retryableFailedCount\n        oldestPendingAgeSeconds\n        expiredProcessingCount\n      }\n      latency {\n        p50QueueWaitMs\n        p95QueueWaitMs\n        p99QueueWaitMs\n        p50ProcessingTimeMs\n        p95ProcessingTimeMs\n        p99ProcessingTimeMs\n        p95EndToEndMs\n        p99EndToEndMs\n      }\n      reliability {\n        successRate\n        failureRate\n        retryRate\n      }\n      throughput {\n        createdPerMinute\n        claimedPerMinute\n        completedPerMinute\n        failedPerMinute\n      }\n      pool {\n        totalConnections\n        idleConnections\n        waitingClients\n      }\n    }\n  }\n"): (typeof documents)["\n  query QueueMetrics {\n    queueMetrics {\n      health {\n        dlqCount\n        retryableFailedCount\n        oldestPendingAgeSeconds\n        expiredProcessingCount\n      }\n      latency {\n        p50QueueWaitMs\n        p95QueueWaitMs\n        p99QueueWaitMs\n        p50ProcessingTimeMs\n        p95ProcessingTimeMs\n        p99ProcessingTimeMs\n        p95EndToEndMs\n        p99EndToEndMs\n      }\n      reliability {\n        successRate\n        failureRate\n        retryRate\n      }\n      throughput {\n        createdPerMinute\n        claimedPerMinute\n        completedPerMinute\n        failedPerMinute\n      }\n      pool {\n        totalConnections\n        idleConnections\n        waitingClients\n      }\n    }\n  }\n"];
 
 export function graphql(source: string) {
   return (documents as any)[source] ?? {};
