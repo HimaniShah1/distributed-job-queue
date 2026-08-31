@@ -2,8 +2,14 @@ type Num = number | null | undefined;
 
 export function formatMs(ms: Num): string {
   if (ms === null || ms === undefined) return '—';
-  if (ms < 1000) return `${Math.round(ms)} ms`;
-  return `${(ms / 1000).toFixed(1)} s`;
+
+  const absMs = Math.abs(ms);
+
+  if (absMs < 1_000) return `${Math.round(ms)} ms`;
+  if (absMs < 60_000) return `${(ms / 1_000).toFixed(1)} s`;
+  if (absMs < 3_600_000) return `${(ms / 60_000).toFixed(1)}m`;
+
+  return `${(ms / 3_600_000).toFixed(1)}h`;
 }
 
 export function formatDuration(seconds: Num): string {

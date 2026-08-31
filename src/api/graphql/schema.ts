@@ -70,9 +70,32 @@ export const schema = /* GraphQL */ `
     pool: PoolMetrics!
   }
 
+  type Job {
+    id: ID!
+    queueName: String!
+    status: String!
+    attemptNumber: Int!
+    maxAttempts: Int!
+    lastError: String
+    createdAt: String!
+    updatedAt: String!
+  }
+
+  input CreateJobInput {
+    queueName: String!
+    "A JSON-encoded object"
+    payload: String!
+    maxAttempts: Int
+  }
+
   type Query {
     health: Health!
     dashboardStats: DashboardStats!
     queueMetrics: QueueMetrics!
+    recentJobs(limit: Int): [Job!]!
+  }
+
+  type Mutation {
+    createJob(input: CreateJobInput!): Job!
   }
 `;
